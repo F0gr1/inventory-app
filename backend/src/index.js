@@ -40,6 +40,48 @@ app.get('/api/items', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch items' });
   }
 });
+
+// 商品登録（新規作成）
+app.post('/api/items', async (req, res) => {
+  try {
+    const { name, quantity } = req.body;
+
+    // バリデーション
+    if (!name || quantity === undefined) {
+      return res.status(400).json({ error: 'Name and quantity are required' });
+    }
+
+    const connection = await pool.getConnection();
+    
+    // 商品名が既に存在するか確認
+    const [existing] = await connection.query('SELECT * FROM items WHERE name = ?', [name]);
+    if (existing.length > 0) {
+      connection.release();
+      return res.status(409).json({ error: 'Item name already exists' });
+    }
+
+    // 新規商品を登録
+    const [result] = await connection.query(
+      'INSERT INTO items (name, quantity) VALUES (?, ?)',
+      [name, Number(quantity)]
+    );
+    
+    connection.release();
+    
+    console.log('Item created successfully:', { id: result.insertId, name, quantity });
+    res.status(201).json({
+      id: result.insertId,
+      name: name,
+      quantity: Number(quantity),
+      message: 'Item created successfully'
+    });
+
+  } catch (error) {
+    console.error('Error creating item:', error);
+    res.status(500).json({ error: 'Failed to create item' });
+  }
+});
+
 // サーバー起動
 app.listen(port, () => {
   console.log(`Backend server is running on port ${port}`);
