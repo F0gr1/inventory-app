@@ -17,7 +17,8 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'inventory_db',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  charset: 'utf8mb4'
 });
 
 // エラーハンドリング
@@ -26,6 +27,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// 商品一覧取得（DBから）
+app.get('/api/items', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query('SELECT * FROM items ORDER BY id DESC');
+    connection.release();
+    console.log('Items fetched successfully:', rows);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    res.status(500).json({ error: 'Failed to fetch items' });
+  }
+});
 // サーバー起動
 app.listen(port, () => {
   console.log(`Backend server is running on port ${port}`);
