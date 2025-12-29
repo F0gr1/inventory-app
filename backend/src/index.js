@@ -21,11 +21,7 @@ const pool = mysql.createPool({
   charset: 'utf8mb4'
 });
 
-// エラーハンドリング
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
-});
+
 
 // 商品一覧取得（DBから）
 app.get('/api/items', async (req, res) => {
@@ -34,10 +30,10 @@ app.get('/api/items', async (req, res) => {
     const [rows] = await connection.query('SELECT * FROM items ORDER BY id DESC');
     connection.release();
     console.log('Items fetched successfully:', rows);
-    res.json(rows);
+    return res.json(rows);
   } catch (error) {
     console.error('Error fetching items:', error);
-    res.status(500).json({ error: 'Failed to fetch items' });
+    return res.status(500).json({ error: 'Failed to fetch items' });
   }
 });
 
@@ -46,40 +42,83 @@ app.post('/api/items', async (req, res) => {
   try {
     const { name, quantity } = req.body;
 
-    // バリデーション
     if (!name || quantity === undefined) {
       return res.status(400).json({ error: 'Name and quantity are required' });
     }
 
     const connection = await pool.getConnection();
-    
-    // 商品名が既に存在するか確認
-    const [existing] = await connection.query('SELECT * FROM items WHERE name = ?', [name]);
+
+    const [existing] = await connection.query(
+      'SELECT * FROM items WHERE name = ?',
+      [name]
+    );
+
     if (existing.length > 0) {
       connection.release();
       return res.status(409).json({ error: 'Item name already exists' });
     }
 
-    // 新規商品を登録
     const [result] = await connection.query(
       'INSERT INTO items (name, quantity) VALUES (?, ?)',
       [name, Number(quantity)]
     );
-    
+
     connection.release();
-    
-    console.log('Item created successfully:', { id: result.insertId, name, quantity });
-    res.status(201).json({
+
+    return res.status(201).json({
       id: result.insertId,
-      name: name,
-      quantity: Number(quantity),
-      message: 'Item created successfully'
+      name,
+      quantity: Number(quantity)
     });
 
   } catch (error) {
     console.error('Error creating item:', error);
-    res.status(500).json({ error: 'Failed to create item' });
+    return res.status(500).json({ error: 'Failed to create item' });
   }
+});
+
+// 商品数量更新
+app.patch('/api/items/:id/quantity', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { quantity } = req.body;
+
+    // 数量が記入されていないとき
+    if (quantity === undefined) {
+      return res.status(400).json({ error: 'quantity is required' });
+    }
+
+    const connection = await pool.getConnection();
+
+    const [result] = await connection.query(
+      'UPDATE items SET quantity = ? WHERE id = ?',
+      [quantity, id]
+    );
+
+    connection.release();
+
+    // 該当データなし
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // 成功
+    return res.status(200).json({
+      message: 'Quantity updated successfully',
+      id,
+      quantity
+    });
+
+  } catch (error) {
+    console.error('Error updating quantity:', error);
+    return res.status(500).json({ error: 'Failed to update quantity' });
+  }
+});
+
+// エラーハンドリング
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // サーバー起動
