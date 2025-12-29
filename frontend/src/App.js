@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './App.css';
+
+const API_URL = 'http://localhost:5001';
 
 // 登録場所を描画するコンポーネント
 const RecordForm = (props) => {
@@ -14,7 +17,6 @@ const RecordForm = (props) => {
   const handleTQuantityChange = (e) => {
       setQuantityInput(e.currentTarget.value);
   }
-
   // 登録ボタンが押されたらエラーを出すか、inputの値を描画するためにsetする
   const handleOnAdd = (e) => {
     e.preventDefault();
@@ -80,14 +82,13 @@ function Item(props) {
 
 function App() {
   const [items, setItems] = useState([]);
-
   useEffect(() => {
-    setItems([
-      { id: 1, name: "ノートPC", quantity: 5 },
-      { id: 2, name: "マウス", quantity: 10 }
-    ]);
+    const fetchItems = async () => {
+      const response = await axios.get(`${API_URL}/api/items`);
+      setItems(response.data);
+    };
+    fetchItems();
   }, []);
-
   //nameとquantityが入力されていたら登録ボタンを押したときに追加される
   const handleAddRecord = (name, quantityStr) => {
     const quantity = Number(quantityStr);
