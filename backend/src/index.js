@@ -115,6 +115,37 @@ app.patch('/api/items/:id/quantity', async (req, res) => {
   }
 });
 
+// 商品削除
+app.delete('/api/items/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const connection = await pool.getConnection();
+
+    const [result] = await connection.query(
+      'DELETE FROM items WHERE id = ?',
+      [id]
+    );
+
+    connection.release();
+
+    // 該当データなし
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Item deleted successfully',
+      id
+    });
+
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    return res.status(500).json({ error: 'Failed to delete item' });
+  }
+});
+
+
 // エラーハンドリング
 app.use((err, req, res, next) => {
   console.error(err.stack);
